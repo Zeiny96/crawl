@@ -1,35 +1,61 @@
-# streamlit_app.py
 import streamlit as st
-from models.chatbot import ChatbotSession
 import uuid
+from models.chatbot import ChatbotSession
 
-# Simple session store in Streamlit (per-user)
+# --------------------------
+# Session Initialization
+# --------------------------
+def start_session():
+    session_id = str(uuid.uuid4())
+    chatbot = ChatbotSession()
+    st.session_state.session_id = session_id
+    st.session_state.chatbot = chatbot
+    st.session_state.history = []
+    st.success(f"✅ Session started: {session_id}")
+
+def ask_question(session_id, question):
+    response = st.session_state.chatbot.handle_question(question)
+    return response
+
+def end_session(session_id):
+    st.success(f"🛑 Session {session_id} ended.")
+    del st.session_state.session_id
+    del st.session_state.chatbot
+    del st.session_state.history
+
+# --------------------------
+# First-time setup
+# --------------------------
 if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-if "chat_session" not in st.session_state:
-    st.session_state.chat_session = ChatbotSession()
+    start_session()
 
-st.title("🧠 Chatbot UI")
+st.title("🧠 Arabic Chatbot Interface")
 
-st.markdown("**Session ID**: " + st.session_state.session_id)
+# Show session ID
+st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
 
-query = st.text_input("Enter your question:")
+# User input
+user_input = st.text_input("🧾 اسأل سؤالك:")
 
-if st.button("Send"):
-    if query.strip():
-        response = st.session_state.chat_session.handle_question(query)
-        st.markdown(f"**Bot:** {response['response']}")
+# Ask button
+if st.button("🔍 إرسال"):
+    if user_input.strip():
+        response = ask_question(st.session_state.session_id, user_input)
+        detailed = response.get("detailed_answer") or response.get("message") or response.get("response")
+        st.session_state.history.append((user_input, detailed))
+        st.markdown(f"**🤖 الرد:** {detailed}")
     else:
-        st.warning("Please enter a question.")
+        st.warning("❗️ الرجاء إدخال سؤال.")
 
-if st.button("End Session"):
-    st.session_state.chat_session = ChatbotSession()
-    st.session_state.session_id = str(uuid.uuid4())
-    st.success("Session restarted.")
+# End session button
+if st.button("🛑 إنهاء الجلسة"):
+    end_session(st.session_state.session_id)
+    start_session()
 
-# Optional: Show history
-st.markdown("---")
-st.markdown("### Conversation History")
-for i, (q, r) in enumerate(st.session_state.chat_session.history):
-    st.markdown(f"**You**: {q}")
-    st.markdown(f"**Bot**: {r}")
+# Show chat history
+if st.session_state.get("history"):
+    st.markdown("---")
+    st.markdown("### 📜 سجل المحادثة")
+    for q, r in st.session_state.history:
+        st.markdown(f"**أنت**: {q}")
+        st.markdown(f"**الرد**: {r}")
